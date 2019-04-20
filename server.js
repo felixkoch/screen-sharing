@@ -20,3 +20,14 @@ app.get('/', function(request, response) {
 const listener = app.listen(process.env.PORT, function() {
   console.log('Your app is listening on port ' + listener.address().port);
 });
+
+var socket = require('socket.io');
+io = socket(listener);
+
+io.on('connection', (socket) => {
+  console.log(socket.id);
+
+  socket.on('SEND_MESSAGE', function(data){
+    io.emit('RECEIVE_MESSAGE', data);
+  })
+});
