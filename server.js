@@ -24,10 +24,32 @@ const listener = app.listen(process.env.PORT, function() {
 var socket = require('socket.io');
 io = socket(listener);
 
-io.on('connection', (socket) => {
-  console.log(socket.id);
 
-  socket.on('SEND_MESSAGE', function(data){
-    io.emit('RECEIVE_MESSAGE', data);
-  })
+  //let socketRoomMap = {};
+  let roomMembers = {};
+
+io.on('connection', (socket) => {
+  console.log(`Angemeldet ist: ${socket.id}`);
+
+  socket.on('JOIN', (data) => {
+    console.log(`JOIN: ${socket.id} joins ${data}`);
+    socket.join(data);
+
+    //socketRoomMap[socket.id] = data;
+    if(typeof roomMembers[data] == 'undefined')
+    {
+      roomMembers[data] = [];
+    }
+    
+    roomMembers[data].push(socket.id);
+
+    socket.emit('MEMBERS', roomMembers[data]);
+  });
+
+  socket.on('SEND_MESSAGE', (data) => {
+    console.log(`Nachricht von: ${socket.id}`);
+    console.log(data);
+    //console.log(socketRoomMap[socket.id])
+    io.to(data.room).emit('RECEIVE_MESSAGE', data);
+  });
 });
