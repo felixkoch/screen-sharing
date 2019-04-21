@@ -2,21 +2,23 @@
 if (!location.hash) {
   location.hash = Math.floor(Math.random() * 0xFFFFFF).toString(16);
 }
-const roomHash = location.hash.substring(1);
+const room = location.hash.substring(1);
 
-// TODO: Replace with your own channel ID
-const drone = new ScaleDrone('63o6Zfoz6yeAcJDG');
 var socket = io();
+socket.emit('JOIN', room);
 
+let clientId = null;
+ socket.on('connect', () => {
+    clientId = socket.id; // an alphanumeric id...
+ });
 
 // Room name needs to be prefixed with 'observable-'
-const roomName = 'observable-' + roomHash;
 const configuration = {
   iceServers: [{
     urls: 'stun:stun.l.google.com:19302'
   }]
 };
-let room;
+
 let pc;
 
 
@@ -26,45 +28,48 @@ function onError(error) {
 };
 
 
-socket.on('connection', function(socket){
-  console.log('io.onconnection');
-  socket.join(roomHash);
+socket.on('MEMBERS', (members) => {
+  console.log(`MEMBERS:`);
+  console.log(members);
+  const isOfferer = members.length === 2;
+  startWebRTC(isOfferer);
 });
 
 
+socket.emit('SEND_MESSAGE', 'test');
 
-/*
-hier weiter
-drone.on('open', error => {
-  if (error) {
-    return console.error(error);
-  }
-  room = drone.subscribe(roomName);
-  room.on('open', error => {
-    if (error) {
-      onError(error);
+socket.on('RECEIVE_MESSAGE', (message) => {
+    // Message was sent by us
+    if (clientId === message.clientId) {
+      return;
     }
-  });
-  // We're connected to the room and received an array of 'members'
-  // connected to the room (including us). Signaling server is ready.
-  room.on('members', members => {
-    console.log('MEMBERS', members);
-    // If we are the second user to connect to the room we will be creating the offer
-    const isOfferer = members.length === 2;
-    startWebRTC(isOfferer);
-  });
+
+    if (message.sdp) {
+      // This is called after receiving an offer or answer from another peer
+      pc.setRemoteDescription(new RTCSessionDescription(message.sdp), () => {
+        // When receiving an offer lets answer it
+        if (pc.remoteDescription.type === 'offer') {
+          pc.createAnswer().then(localDescCreated).catch(onError);
+        }
+      }, onError);
+    } else if (message.candidate) {
+      // Add the new ICE candidate to our connections remote description
+      pc.addIceCandidate(
+        new RTCIceCandidate(message.candidate), onSuccess, onError
+      );
+    }
+
 });
-*/
 
 // Send signaling data via Scaledrone
 function sendMessage(message) {
-  drone.publish({
-    room: roomName,
-    message
-  });
+  message.room = room;
+  message.clientId = clientId;
+  socket.emit('SEND_MESSAGE', message);
 }
 
 function startWebRTC(isOfferer) {
+  console.log("startWebRtc("+isOfferer+")");
   pc = new RTCPeerConnection(configuration);
 
   // 'onicecandidate' notifies us whenever an ICE agent needs to deliver a
@@ -87,38 +92,16 @@ function startWebRTC(isOfferer) {
     remoteVideo.srcObject = event.stream;
   };
 
-  navigator.mediaDevices.getUserMedia({
-    audio: true,
-    video: true,
-  }).then(stream => {
-    // Display your local video in #localVideo element
-    localVideo.srcObject = stream;
-    // Add your stream to be sent to the conneting peer
-    pc.addStream(stream);
-  }, onError);
-
-  // Listen to signaling data from Scaledrone
-  room.on('data', (message, client) => {
-    // Message was sent by us
-    if (client.id === drone.clientId) {
-      return;
-    }
-
-    if (message.sdp) {
-      // This is called after receiving an offer or answer from another peer
-      pc.setRemoteDescription(new RTCSessionDescription(message.sdp), () => {
-        // When receiving an offer lets answer it
-        if (pc.remoteDescription.type === 'offer') {
-          pc.createAnswer().then(localDescCreated).catch(onError);
-        }
-      }, onError);
-    } else if (message.candidate) {
-      // Add the new ICE candidate to our connections remote description
-      pc.addIceCandidate(
-        new RTCIceCandidate(message.candidate), onSuccess, onError
-      );
-    }
-  });
+    navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
+    }).then(stream => {
+      // Display your local video in #localVideo element
+      localVideo.srcObject = stream;
+      // Add your stream to be sent to the conneting peer
+      pc.addStream(stream);
+    }, onError);
+  
 }
 
 function localDescCreated(desc) {
