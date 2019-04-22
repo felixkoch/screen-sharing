@@ -44,6 +44,7 @@ io.on('connection', (socket) => {
     roomMembers[data].push(socket.id);
 
     socket.emit('MEMBERS', roomMembers[data]);
+    //io.to(data).emit('MEMBERS', roomMembers[data]);
   });
 
   socket.on('SEND_MESSAGE', (data) => {

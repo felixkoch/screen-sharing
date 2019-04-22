@@ -32,7 +32,7 @@ socket.on('MEMBERS', (members) => {
   console.log(`MEMBERS:`);
   console.log(members);
   const isOfferer = members.length === 2;
-  startWebRTC(isOfferer);
+    startWebRTC(isOfferer);
 });
 
 
@@ -81,7 +81,7 @@ function startWebRTC(isOfferer) {
   };
 
   // If user is offerer let the 'negotiationneeded' event create the offer
-  if (isOfferer) {
+   if (isOfferer) {
     pc.onnegotiationneeded = () => {
       pc.createOffer().then(localDescCreated).catch(onError);
     }
@@ -92,8 +92,10 @@ function startWebRTC(isOfferer) {
     remoteVideo.srcObject = event.stream;
   };
 
-    navigator.mediaDevices.getUserMedia({
-      audio: true,
+    navigator.mediaDevices.getDisplayMedia({
+
+    //navigator.mediaDevices.getUserMedia({
+      //audio: true,
       video: true,
     }).then(stream => {
       // Display your local video in #localVideo element
@@ -101,6 +103,7 @@ function startWebRTC(isOfferer) {
       // Add your stream to be sent to the conneting peer
       pc.addStream(stream);
     }, onError);
+
   
 }
 
