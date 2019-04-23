@@ -92,6 +92,8 @@ function startWebRTC(isOfferer) {
     remoteVideo.srcObject = event.stream;
   };
 
+  if(!isOfferer)
+  {
     navigator.mediaDevices.getDisplayMedia({
 
     //navigator.mediaDevices.getUserMedia({
@@ -103,6 +105,12 @@ function startWebRTC(isOfferer) {
       // Add your stream to be sent to the conneting peer
       pc.addStream(stream);
     }, onError);
+  }
+  else
+  {
+    var stream = canvas.captureStream(); // 25 FPS
+    pc.addStream(stream);
+  }
 
   
 }
